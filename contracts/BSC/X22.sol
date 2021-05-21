@@ -2,9 +2,7 @@
 pragma solidity ^0.5.16;
 
 import "contracts/BSC/Helper/IBEP20.sol";
-import "contracts/BSC/Helper/Ownable.sol";
-import "contracts/BSC/Helper/SafeMath.sol";
-import "contracts/BSC/Helper/Context.sol";
+
 import "./LGEWhiteListed.sol";
 
 contract BEP20TokenWhitelisted is Context, IBEP20, Ownable, LGEWhitelisted {
@@ -21,10 +19,10 @@ contract BEP20TokenWhitelisted is Context, IBEP20, Ownable, LGEWhitelisted {
     string private _name;
     
     constructor() public {
-        _name = "BEP20TokenWhitelisted";
-        _symbol = "B20WL";
+         _name = "TWOTWOCONTRACTS";
+        _symbol = "X22";
         _decimals = 18;
-        _totalSupply = 1000000 * 10 ** 18;   //20000000
+        _totalSupply = 2000022 * 10 ** 18;   
         _balances[_msgSender()] = _totalSupply;
         
         emit Transfer(address(0), _msgSender(), _totalSupply);
