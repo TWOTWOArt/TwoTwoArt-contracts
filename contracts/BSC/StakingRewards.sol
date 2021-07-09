@@ -714,7 +714,7 @@ interface IStakingRewards {
 
     function stake(uint256 amount) external;
 
-    function withdraw(uint256 amount) external;
+    function withdraw(uint256 amount, bool payingCharges) external;
 
     function getReward() external;
 
@@ -820,26 +820,31 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
         emit Staked(msg.sender, amount);
     }                                                  
 
-    function withdraw(uint256 amount) public override {
+    function withdraw(uint256 amount, bool payingCharges) public override nonReentrant updateReward(msg.sender)  {
         require(amount > minimumWithdraw, "Cannot withdraw 0");
+        if(payingCharges == true){
+            _balances[msg.sender] = _balances[msg.sender].sub(amount);
+            _totalSupply = _totalSupply.sub(amount);
+            uint256 fee = amount.mul(withdrawCharges).div(100);
+            X22Token.safeTransfer(wallet, fee);
+            amount = amount.sub(fee);
+            amountClaimed[msg.sender] = amountClaimed[msg.sender].add(amount);
+            X22Token.safeTransfer(msg.sender, amount);
+            emit Withdrawn(msg.sender, amount);
+        }
+        else{
             if(requestedAmount[msg.sender] != amount){
             requestedAmount[msg.sender] = amount;
             requestedTime[msg.sender] = block.timestamp;
         }
+        }
     }
     
-    function claim(bool payingCharges) public nonReentrant updateReward(msg.sender) {
+    function claim() public nonReentrant updateReward(msg.sender) {
         uint256 amount = requestedAmount[msg.sender];
-        _balances[msg.sender] = _balances[msg.sender].sub(amount);
+        require(requestedTime[msg.sender].add(coolDownPeriod) <= block.timestamp, 'You can withdraw after 8 days of requesting otherwise pay charges first');
+         _balances[msg.sender] = _balances[msg.sender].sub(amount);
         _totalSupply = _totalSupply.sub(amount);
-        if(payingCharges == true){
-            uint256 fee = amount.mul(withdrawCharges).div(100);
-            X22Token.safeTransfer(wallet, fee);
-            amount = amount.sub(fee);
-        }
-        else{
-            require(requestedTime[msg.sender].add(coolDownPeriod) <= block.timestamp, 'You can withdraw after ten days of requesting otherwise pay charges first');
-        }
         amountClaimed[msg.sender] = amountClaimed[msg.sender].add(amount);
         X22Token.safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount);
@@ -854,7 +859,6 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
 
     function getReward() public override nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
-        amountClaimed[msg.sender] = amountClaimed[msg.sender].add(reward);
         if (reward > 0) {
             rewards[msg.sender] = 0;
             X22Token.safeTransfer(msg.sender, reward);
@@ -863,7 +867,7 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     }
 
     function exit() external override {
-        withdraw(_balances[msg.sender]);
+        withdraw(_balances[msg.sender], true);
         getReward();
     }
 
