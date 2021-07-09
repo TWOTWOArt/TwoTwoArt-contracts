@@ -736,7 +736,7 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     uint256 public rewardsDuration = 30 days;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
-    uint256 public coolDownPeriod = 691200;
+    uint256 public coolDownPeriod = 20;
     uint256 public withdrawCharges = 7;
     uint256 public minimumWithdraw = 0;
 
@@ -744,7 +744,6 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     mapping(address => uint256) public rewards;
     mapping(address => uint256) public requestedTime;
     mapping(address => uint256) public requestedAmount;
-    mapping(address => uint256) public amountClaimed;
 
     uint256 private _totalSupply;
     mapping(address => uint256) private _balances;
@@ -828,7 +827,6 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
             uint256 fee = amount.mul(withdrawCharges).div(100);
             X22Token.safeTransfer(wallet, fee);
             amount = amount.sub(fee);
-            amountClaimed[msg.sender] = amountClaimed[msg.sender].add(amount);
             X22Token.safeTransfer(msg.sender, amount);
             emit Withdrawn(msg.sender, amount);
         }
@@ -840,12 +838,20 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
         }
     }
     
-    function claim() public nonReentrant updateReward(msg.sender) {
+    function claim(bool payingCharges) public nonReentrant updateReward(msg.sender) {
         uint256 amount = requestedAmount[msg.sender];
-        require(requestedTime[msg.sender].add(coolDownPeriod) <= block.timestamp, 'You can withdraw after 8 days of requesting otherwise pay charges first');
-         _balances[msg.sender] = _balances[msg.sender].sub(amount);
-        _totalSupply = _totalSupply.sub(amount);
-        amountClaimed[msg.sender] = amountClaimed[msg.sender].add(amount);
+        if(payingCharges == true){
+            _balances[msg.sender] = _balances[msg.sender].sub(amount);
+            _totalSupply = _totalSupply.sub(amount);
+            uint256 fee = amount.mul(withdrawCharges).div(100);
+            X22Token.safeTransfer(wallet, fee);
+            amount = amount.sub(fee);
+        }
+        else{
+            require(requestedTime[msg.sender].add(coolDownPeriod) <= block.timestamp, 'You can withdraw after 8 days of requesting otherwise pay charges first');
+            _balances[msg.sender] = _balances[msg.sender].sub(amount);
+            _totalSupply = _totalSupply.sub(amount);
+        }
         X22Token.safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, amount);
         requestedTime[msg.sender] = 0;
