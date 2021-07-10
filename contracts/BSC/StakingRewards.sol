@@ -767,6 +767,16 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     function updateWallet(address _wallet) public onlyOwner {
         wallet = _wallet;
     }
+    
+    //Update withdraw charges
+    function updateCharges(uint256 percentage) public onlyOwner {
+        withdrawCharges = percentage;
+    }
+    
+    //Update Cooldown period
+    function updateCoolDownPeriod(uint256 NewPeriod) public onlyOwner {
+        coolDownPeriod = NewPeriod.mul(86400);
+    }
 
     /* ========== VIEWS ========== */
 
