@@ -736,9 +736,9 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     uint256 public rewardsDuration = 30 days;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
-    uint256 public coolDownPeriod = 20;
+    uint256 public coolDownPeriod = 691200;
     uint256 public withdrawCharges = 7;
-    uint256 public minimumWithdraw = 0;
+    uint256 constant public minimumWithdraw = 0;
 
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
@@ -764,17 +764,17 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     }
     
     //Update the wallet
-    function updateWallet(address _wallet) public onlyOwner {
+    function updateWallet(address _wallet) external onlyOwner {
         wallet = _wallet;
     }
     
     //Update withdraw charges
-    function updateCharges(uint256 percentage) public onlyOwner {
+    function updateCharges(uint256 percentage) external onlyOwner {
         withdrawCharges = percentage;
     }
     
     //Update Cooldown period
-    function updateCoolDownPeriod(uint256 NewPeriod) public onlyOwner {
+    function updateCoolDownPeriod(uint256 NewPeriod) external onlyOwner {
         coolDownPeriod = NewPeriod.mul(86400);
     }
 
@@ -817,7 +817,7 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
         require(rewards[msg.sender] >= amount, 'The rewards are not sufficient');
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);
-        rewards[msg.sender] = rewards[msg.sender] - amount;
+        rewards[msg.sender] = rewards[msg.sender].sub(amount);
         emit Staked(msg.sender, amount);
     }
 
