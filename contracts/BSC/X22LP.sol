@@ -238,8 +238,6 @@ contract X22LP is ReentrancyGuard {
     function requestWithdrawWithXPT(uint256 amount,uint256 _index, bool payingCharges) external nonReentrant validAmount(amount){
         require(!reserveRecipients[msg.sender],"Claim first");
         require(XPTtoken.balanceOf(msg.sender) >= amount, "low XPT");
-        (,uint availableXPT)=availableLiquidity(msg.sender,_index,true );
-        require(availableXPT>=amount,"NA");
         uint256[N_COINS] memory amountWithdraw;
         if(payingCharges == true){
            uint256 total = calculateTotalToken(true);
