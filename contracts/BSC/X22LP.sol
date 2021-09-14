@@ -230,7 +230,7 @@ contract X22LP is ReentrancyGuard {
         tokenAmount = tokenAmount.mul(10**decimal).div(10**18);
         uint256 currentPoolAmount = getBalances(_index);
         if(tokenAmount>currentPoolAmount){
-            require(YieldPoolBalance < tokenAmount.mul(10**18).div(10**decimal));
+            require(YieldPoolBalance < tokenAmount.mul(10**18).div(10**decimal),'The yield pool balance is not enough');
         }
         if(payingCharges == true){
            for(uint8 i=0;i<N_COINS;i++){
@@ -300,7 +300,7 @@ contract X22LP is ReentrancyGuard {
            }
             uint256 currentPoolAmount = getBalances(_index);
             if(tokenAmount>currentPoolAmount){
-                require(YieldPoolBalance < tokenAmount.mul(10**18).div(10**decimal));
+                require(YieldPoolBalance < tokenAmount.mul(10**18).div(10**decimal),'The yield pool balance is not enough');
                 _withdraw(amountWithdraw);
             }
         selfBalance = selfBalance.sub((tokenAmount.sub(temp)).mul(1e18).div(10**decimal));
