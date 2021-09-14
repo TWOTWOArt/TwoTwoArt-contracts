@@ -179,24 +179,7 @@ contract X22LP is ReentrancyGuard {
         else{
           return (amount.mul(XPTtoken.totalSupply()).div(total)); 
         }
-    }
-
-
-
-    //function to check available amount to withdraw for user
-    function availableLiquidity(address addr, uint coin,bool _time) public view returns(uint256 token,uint256 XPT) {
-        uint256 amount=0;
-        for(uint8 j=0; j<amountSupplied[addr].length; j++) {
-                if( (!_time || (block.timestamp - amountSupplied[addr][j].time)  > lock_period)&&amountSupplied[addr][j].remAmt >0)   {
-                        amount =amount.add(amountSupplied[addr][j].remAmt);
-                }
-        }
-        uint256 total=calculateTotalToken(true);
-        uint256 decimal;
-        decimal=tokens[coin].decimals();
-        return ((amount.mul(total).mul(10**decimal).div(XPTtoken.totalSupply())).div(10**18),amount);
-    }
-    
+    }    
 
     //calculated available total tokens in the pool by substracting withdrawal, reserve amount.
     //In case supply is true , it adds total loan given.
@@ -239,13 +222,17 @@ contract X22LP is ReentrancyGuard {
         require(!reserveRecipients[msg.sender],"Claim first");
         require(XPTtoken.balanceOf(msg.sender) >= amount, "low XPT");
         uint256[N_COINS] memory amountWithdraw;
+        uint256 tokenAmount;
+        uint256 total = calculateTotalToken(true);
+        tokenAmount=amount.mul(total).div(XPTtoken.totalSupply());
+        uint decimal;
+        decimal=tokens[_index].decimals();
+        tokenAmount = tokenAmount.mul(10**decimal).div(10**18);
+        uint256 currentPoolAmount = getBalances(_index);
+        if(tokenAmount>currentPoolAmount){
+            require(YieldPoolBalance < tokenAmount.mul(10**18).div(10**decimal));
+        }
         if(payingCharges == true){
-           uint256 total = calculateTotalToken(true);
-           uint256 tokenAmount;
-           tokenAmount=amount.mul(total).div(XPTtoken.totalSupply());
-           uint decimal;
-           decimal=tokens[_index].decimals();
-           tokenAmount = tokenAmount.mul(10**decimal).div(10**18);
            for(uint8 i=0;i<N_COINS;i++){
               if(i==_index){
                   amountWithdraw[i] = tokenAmount;
@@ -254,7 +241,6 @@ contract X22LP is ReentrancyGuard {
                   amountWithdraw[i] = 0;
               }
            }
-            uint256 currentPoolAmount = getBalances(_index);
             if(tokenAmount>currentPoolAmount){
                 _withdraw(amountWithdraw);
             }
@@ -314,6 +300,7 @@ contract X22LP is ReentrancyGuard {
            }
             uint256 currentPoolAmount = getBalances(_index);
             if(tokenAmount>currentPoolAmount){
+                require(YieldPoolBalance < tokenAmount.mul(10**18).div(10**decimal));
                 _withdraw(amountWithdraw);
             }
         selfBalance = selfBalance.sub((tokenAmount.sub(temp)).mul(1e18).div(10**decimal));
