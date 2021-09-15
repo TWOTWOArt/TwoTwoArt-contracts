@@ -227,12 +227,12 @@ contract X22LP is ReentrancyGuard {
         tokenAmount=amount.mul(total).div(XPTtoken.totalSupply());
         uint decimal;
         decimal=tokens[_index].decimals();
-        tokenAmount = tokenAmount.mul(10**decimal).div(10**18);
         uint256 currentPoolAmount = getBalances(_index);
         if(tokenAmount>currentPoolAmount){
-            require(YieldPoolBalance < tokenAmount.mul(10**18).div(10**decimal),'The yield pool balance is not enough');
+            require(YieldPoolBalance < tokenAmount.mul(10**18),'yield pool balance low');
         }
         if(payingCharges == true){
+           tokenAmount = tokenAmount.mul(10**decimal).div(10**18);
            for(uint8 i=0;i<N_COINS;i++){
               if(i==_index){
                   amountWithdraw[i] = tokenAmount;
@@ -240,7 +240,7 @@ contract X22LP is ReentrancyGuard {
               else{
                   amountWithdraw[i] = 0;
               }
-           }
+            }
             if(tokenAmount>currentPoolAmount){
                 _withdraw(amountWithdraw);
             }
@@ -279,10 +279,14 @@ contract X22LP is ReentrancyGuard {
         uint256 _index = requestedIndex[msg.sender];
         uint256 tokenAmount;
         tokenAmount=requestedAmount[msg.sender].mul(total).div(XPTtoken.totalSupply());
+        uint256 currentPoolAmount = getBalances(_index);
+        if(tokenAmount>currentPoolAmount){
+            require(YieldPoolBalance < tokenAmount.mul(10**18),'yield pool balance low');
+        }
         uint decimal;
         decimal=tokens[_index].decimals();
-        tokenAmount = tokenAmount.mul(10**decimal).div(10**18);
         uint temp =0;
+        tokenAmount = tokenAmount.mul(10**decimal).div(10**18);
         if(payingCharges){
                 temp = (tokenAmount.mul(fees)).div(10000);
         }
@@ -297,12 +301,10 @@ contract X22LP is ReentrancyGuard {
               else{
                   amountWithdraw[i] = 0;
               }
-           }
-            uint256 currentPoolAmount = getBalances(_index);
-            if(tokenAmount>currentPoolAmount){
-                require(YieldPoolBalance < tokenAmount.mul(10**18).div(10**decimal),'The yield pool balance is not enough');
-                _withdraw(amountWithdraw);
-            }
+        }
+        if(tokenAmount>currentPoolAmount){
+            _withdraw(amountWithdraw);
+        }
         selfBalance = selfBalance.sub((tokenAmount.sub(temp)).mul(1e18).div(10**decimal));
         tokens[_index].safeTransfer(msg.sender, tokenAmount.sub(temp));
         emit userClaimed(msg.sender,tokenAmount.sub(temp),_index,payingCharges);
