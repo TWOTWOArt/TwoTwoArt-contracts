@@ -1265,7 +1265,7 @@ contract Lottery is Ownable, Initializable {
         return address(_randomGenerator);
     }
     
-    function ChangeCurrentGasPrice(uint256 gasPrice) external{
+    function ChangeCurrentGasPrice(uint256 gasPrice) external onlyOwner(){
         currentGasPrice = gasPrice;
     }
 }
