@@ -870,7 +870,6 @@ contract X22LP is ReentrancyGuard {
         amountSupplied[msg.sender].push(
             depositDetails(_index, amount, block.timestamp, mintAmount)
         );
-        decimal = tokens[_index].decimals();
         if(YieldPoolBalance< selfBalance.mul(DENOMINATOR.sub(poolPart)).div(DENOMINATOR)){
              uint256 totalAmount;
         uint256[N_COINS] memory amounts;
@@ -894,7 +893,8 @@ contract X22LP is ReentrancyGuard {
             _deposit(amounts);
         }
         }
-        selfBalance = selfBalance.add(amount.mul(10**18).div(10**decimal));
+        decimal = tokens[_index].decimals();
+        selfBalance = selfBalance.add((amount).mul(10**18).div(10**decimal));
         tokens[_index].safeTransferFrom(
             msg.sender,
             address(this),
