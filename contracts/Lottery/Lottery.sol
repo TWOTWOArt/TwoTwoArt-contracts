@@ -1,4 +1,12 @@
 /**
+ *Submitted for verification at BscScan.com on 2021-11-16
+*/
+
+/**
+ *Submitted for verification at BscScan.com on 2021-11-16
+*/
+
+/**
  *Submitted for verification at BscScan.com on 2021-11-01
 */
 
@@ -918,8 +926,8 @@ contract Lottery is Ownable, Initializable {
         uint256 lotteryId;
         Status lotteryStatus;
         uint256 costPerTicket;
-        string[] nftlinks;
-        uint8[] prizeDistribution; // 5, 0, 0
+        string[3] nftlinks;
+        uint8[3] prizeDistribution; // 5, 0, 0
         uint256 startingTimestamp;
         uint256 closingTimestamp;
         uint256 minTicketsToBuy;
@@ -941,10 +949,14 @@ contract Lottery is Ownable, Initializable {
         uint256 ticketNumber;
         uint256 lotteryId;
     }
+    
     // tokenId => tokenInformation
     mapping(uint256 => TicketInfo) internal _allTickets;
     // User Address => lotteryId => ticket IDs
     mapping(address => mapping(uint256 => uint256[])) public userTickets;
+    // lotteryId=>useraddress=>struct
+    mapping(uint256=> mapping(address=>uint256)) public userPurchase;
+    mapping(uint256=> mapping(address=>bool)) public hasWithdrawn;
     // lotteryId to tickets corresponding that lottery
     mapping(uint256 => uint256[]) public ticketsToALottery;
     // Storing the data if user contains the 4play NFT
@@ -956,12 +968,9 @@ contract Lottery is Ownable, Initializable {
     mapping(address => bool) public admins;
     address[] private requesters;
 
-    uint256 private _lotteryIdCounter;
     uint256 public lotteryId;
     uint256 private _ticketIdCounter;
     uint256 public timesTicket = 200;
-    uint256 public txCharge = 2420; //according to current price;
-    uint256 public denominator = 10000000;
     uint256 public currentGasPrice = 0;
 
     constructor(address x22, address randomGenerator) {
@@ -976,18 +985,18 @@ contract Lottery is Ownable, Initializable {
     }
 
     function createNewLottery(
-        uint8[] calldata _prizeDistribution,
-        string[] calldata _nftlinks,
+        uint8[3] calldata _prizeDistribution,
+        string[3] calldata _nftlinks,
         uint256 _costPerTicket,
         uint256 _minTicketsToBuy,
         uint256 _closingTimestamp
     ) external onlyAdmins {
         // checking for starting time is strictly greater than current time
-        if (_lotteryIdCounter == 0) {
+        if (lotteryId == 0) {
             _ticketIdCounter = 0;
         } else {
             require(
-                allLotteries[_lotteryIdCounter].lotteryStatus ==
+                allLotteries[lotteryId].lotteryStatus ==
                     Status.Completed,
                 "Past lottery is still in progress, you can't create New!"
             );
@@ -1000,8 +1009,6 @@ contract Lottery is Ownable, Initializable {
                 LotteryStart > block.timestamp,
             "Timestamps for lottery Invalid"
         );
-        require(_nftlinks.length == 3, "NFTs ID Invalid");
-        require(_prizeDistribution.length == 3, "Prize Distribution Invalid");
         require(
             _minTicketsToBuy >= 3,
             "Min tickets to purchase should be more than or equal to No. of winners!"
@@ -1015,8 +1022,7 @@ contract Lottery is Ownable, Initializable {
         require(prizeDistributionTotal < 100, "Total Prize is above 100");
 
         // counter for lottery IDs
-        _lotteryIdCounter += 1;
-        lotteryId = _lotteryIdCounter;
+        lotteryId += 1;
         Status lotteryStatus;
         lotteryStatus = Status.NotStarted;
         // saving data in struct
@@ -1024,7 +1030,7 @@ contract Lottery is Ownable, Initializable {
         allLotteries[lotteryId].lotteryStatus = lotteryStatus;
         allLotteries[lotteryId].costPerTicket = _costPerTicket;
         for (uint8 i = 0; i < 3; i++) {
-            allLotteries[lotteryId].nftlinks.push(_nftlinks[i]);
+            allLotteries[lotteryId].nftlinks[i]=_nftlinks[i];
         }
         allLotteries[lotteryId].prizeDistribution = _prizeDistribution;
         allLotteries[lotteryId].startingTimestamp = LotteryStart;
@@ -1036,8 +1042,12 @@ contract Lottery is Ownable, Initializable {
     }
 
     // withdrawing x22 by the treasury
-    function withdrawx22(uint256 _amount) external onlyOwner {
+    function withdrawx22(uint256 _lotteryId, uint256 _amount) external onlyOwner {
+        require(allLotteries[_lotteryId].lotteryStatus == Status.Completed," Current lottery is not completed yes!");
+        require(ticketsSold[_lotteryId]>=allLotteries[_lotteryId].minTicketsToBuy,"The minimum no of tickets has been not reached");
+        require(_amount<=prizePool[_lotteryId],"You are withdrawing more then available for the lottery");
         _x22.transfer(msg.sender, _amount);
+        prizePool[_lotteryId] = prizePool[_lotteryId].sub(_amount);
         emit AmountWithdrawn(_amount);
     }
 
@@ -1078,6 +1088,7 @@ contract Lottery is Ownable, Initializable {
         // transfer the amount in x22 to this contract
         _x22.transferFrom(msg.sender, address(this), totalCost);
         payable(owner()).transfer(currentGasPrice);
+        userPurchase[_lotteryId][msg.sender] = userPurchase[_lotteryId][msg.sender].add(totalCost);
 
         // calculate current tickets sold,
         //
@@ -1133,33 +1144,15 @@ contract Lottery is Ownable, Initializable {
             allLotteries[_lotteryId].closingTimestamp <= block.timestamp,
             "Lottery time is not up!"
         );
+        
+        require(ticketsSold[_lotteryId]>=allLotteries[_lotteryId].minTicketsToBuy,"The minimum no of tickets has been not reached");
 
         if (allLotteries[_lotteryId].lotteryStatus == Status.Open) {
             allLotteries[_lotteryId].lotteryStatus = Status.Closed;
         }
         // require(allLotteries[_lotteryId].lotteryStatus == Status.Closed, "Lottery is not closed, cant drow winners");
 
-        if (
-            ticketsSold[_lotteryId] < allLotteries[_lotteryId].minTicketsToBuy
-        ) {
-            // cancelling the lottery and sending tokens back to buyers
-            uint256 totalTickets = ticketsSold[_lotteryId];
-            uint256 amount = allLotteries[_lotteryId].costPerTicket;
-
-            for (uint256 i = 0; i < totalTickets; i++) {
-                // user to transfer amount back, the amount
-                uint256 ticketId = i.add(1);
-                address user = lotteryTicketOwner[_lotteryId][ticketId];
-                // transfer the money
-                _x22.transfer(user, amount);
-                if(containsNFT[msg.sender] == true){
-                    i++;
-                }
-            }
-            allLotteries[_lotteryId].lotteryStatus = Status.Completed;
-        }
         
-        else{
              // check if ticketsSold is more than the minLimitToBuy
              // require(ticketsSold[_lotteryId] >= allLotteries[_lotteryId].minTicketsToBuy, "Minimum Number of Tickets not sold, lottery is being cancelled!");
              // if ticketsSold is less, than transfer the x22 amounts to those buyers
@@ -1183,7 +1176,7 @@ contract Lottery is Ownable, Initializable {
             );
         }
         // draw three winning numbers
-        uint256 balance = _x22.balanceOf(address(this));
+        uint256 balance = prizePool[_lotteryId];
         for (uint256 i = 0; i < 3; i++) {
             address user = winnersList[_lotteryId][i];
             uint256 amount = balance
@@ -1191,12 +1184,23 @@ contract Lottery is Ownable, Initializable {
                 .div(100);
             if (amount > 0) {
                 _x22.transfer(user, amount);
+                prizePool[_lotteryId] = prizePool[_lotteryId].sub(amount);
             }
         }
 
         allLotteries[_lotteryId].lotteryStatus = Status.Completed;
-        }
-        
+    }
+    
+    function GetBackX22(uint256 _lotteryId) external {
+        require(hasWithdrawn[lotteryId][msg.sender] == false,"You already withdrawn X22");
+        require(ticketsSold[_lotteryId]<allLotteries[_lotteryId].minTicketsToBuy,"tickets are more then the min limit so you can not claim your X22");
+        require(allLotteries[_lotteryId].closingTimestamp < block.timestamp,"Lottery is not finished yet");
+        require(userPurchase[_lotteryId][msg.sender] > 0, "you did not buy anything");
+        uint256 X22Paid = userPurchase[_lotteryId][msg.sender];
+        _x22.transfer(msg.sender,X22Paid);
+        prizePool[_lotteryId] = prizePool[_lotteryId].sub(X22Paid);
+        hasWithdrawn[_lotteryId][msg.sender] = true;
+        allLotteries[_lotteryId].lotteryStatus = Status.Completed;
     }
 
     function setLotteryTiming(uint256 _time) external onlyAdmins {
@@ -1213,8 +1217,7 @@ contract Lottery is Ownable, Initializable {
                 "Users bought tickets so you are not able to cancel the lottery!"
         );
         delete (allLotteries[lotteryId]);
-        _lotteryIdCounter--;
-        lotteryId = _lotteryIdCounter;
+        lotteryId--;
         emit Lotterycanceled(msg.sender, true);
     }
 
